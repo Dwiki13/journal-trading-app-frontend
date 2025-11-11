@@ -19,15 +19,15 @@ import {
 
 const items = [
   { title: "Home", url: "/dashboard", icon: Home },
-  { 
-    title: "Master", 
-    icon: Database,
-    submenu: [
-      { title: "Master Store", url: "/master/store" },
-      { title: "Master Service", url: "/master/service" },
-      { title: "Master Store Service", url: "/master/store-service" },
-    ]
-  },
+  // { 
+  //   title: "Master", 
+  //   icon: Database,
+  //   submenu: [
+  //     { title: "Master Store", url: "/master/store" },
+  //     { title: "Master Service", url: "/master/service" },
+  //     { title: "Master Store Service", url: "/master/store-service" },
+  //   ]
+  // },
   { title: "Platform User Management", url: "/platformUser-management", icon: Users },
   { title: "Settings", url: "#", icon: Settings },
 ];
