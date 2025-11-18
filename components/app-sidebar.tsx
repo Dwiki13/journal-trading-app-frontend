@@ -1,4 +1,4 @@
-import { Calendar, Database, Home, Users, Settings, ChevronDown } from "lucide-react";
+import { Calendar, Database, Home, Users, Settings, ChevronDown, Book, DatabaseIcon } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -28,8 +28,7 @@ const items = [
   //     { title: "Master Store Service", url: "/master/store-service" },
   //   ]
   // },
-  { title: "Platform User Management", url: "/platformUser-management", icon: Users },
-  { title: "Settings", url: "#", icon: Settings },
+  { title: "Data Journal", url: "/platformUser-management", icon: DatabaseIcon },
 ];
 
 export function AppSidebar() {
