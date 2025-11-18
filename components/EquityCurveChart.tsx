@@ -111,8 +111,8 @@ export function EquityCurveChart({
       <CardFooter className="flex-col items-start gap-2 text-sm">
         <div className="flex gap-2 leading-none font-medium">
           {isUp
-            ? `Trending up by $${diff.toLocaleString()}`
-            : `Trending down by $${Math.abs(diff).toLocaleString()}`}
+            ? `Trending up by + $${diff.toLocaleString()}`
+            : `Trending down by - $${Math.abs(diff).toLocaleString()}`}
           {isUp ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
         </div>
         <div className="text-muted-foreground leading-none">

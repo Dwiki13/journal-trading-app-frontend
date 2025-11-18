@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const items = [
-  { title: "Home", url: "/dashboard", icon: Home },
+  { title: "Dashboard", url: "/dashboard", icon: Home },
   // { 
   //   title: "Master", 
   //   icon: Database,
@@ -38,7 +38,7 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-            UMKM Tools Panel
+            Journal Trading
           </SidebarGroupLabel>
 
           <SidebarGroupContent>
