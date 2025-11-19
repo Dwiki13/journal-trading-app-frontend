@@ -3,11 +3,8 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EquityCurveChart } from "@/components/EquityCurveChart";
-import { WinLossPieChart } from "@/components/WinLossPieChart";
-import { ProfitBarChart } from "@/components/ProfitPerPairChart";
 import { getDashboards } from "../store/dashboardStore";
 import { Dashboard } from "../type/dashboard";
-import { DailyBarChart } from "@/components/DailyBarChart";
 import { Spinner } from "@/components/ui/spinner";
 
 export default function DashboardPage() {

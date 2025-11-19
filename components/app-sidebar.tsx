@@ -28,7 +28,7 @@ const items = [
   //     { title: "Master Store Service", url: "/master/store-service" },
   //   ]
   // },
-  { title: "Data Journal", url: "/platformUser-management", icon: DatabaseIcon },
+  { title: "Data Journal", url: "/data-journal", icon: DatabaseIcon },
 ];
 
 export function AppSidebar() {

@@ -6,7 +6,7 @@ import { Toaster } from "sonner";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { usePathname, useRouter } from "next/navigation";
-import { Sun, Moon, User } from "lucide-react";
+import { Sun, Moon, User, LogOutIcon } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { ThemeProvider } from "next-themes";
 
@@ -67,10 +67,10 @@ export default function RootLayout({
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem>
+                        {/* <DropdownMenuItem>
                           <a href="/user/settings">User Settings</a>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleLogout}>Logout</DropdownMenuItem>
+                        </DropdownMenuItem> */}
+                        <DropdownMenuItem onClick={handleLogout}>Logout<LogOutIcon></LogOutIcon></DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
