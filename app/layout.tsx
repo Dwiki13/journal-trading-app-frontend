@@ -47,7 +47,7 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased flex`}>
         <ThemeProvider attribute="class" defaultTheme="system">
             {showSidebar ? (
-              <SidebarProvider defaultOpen={true}>
+              <SidebarProvider defaultOpen={false}>
                 <AppSidebar />
                 <main className="flex-1 p-6 md:p-10 relative">
                   <SidebarTrigger />
