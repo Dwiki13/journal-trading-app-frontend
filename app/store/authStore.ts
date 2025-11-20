@@ -34,6 +34,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
       set({ token, user });
       localStorage.setItem("token", token ?? "");
+      // api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
       localStorage.setItem("user", JSON.stringify(user));
 
       return user;

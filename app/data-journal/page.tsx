@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { getJournals } from "../store/journalStore";
 import { GetJournalsResponse, Journal } from "../type/journal";
+import { ImageOff, ArrowUp, ArrowDown } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -21,26 +22,36 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import JournalForm from "./form";
+
+function isValidImage(url: string | null | undefined) {
+  if (!url) return false;
+  if (url.includes("undefined")) return false;
+  return true;
+}
+
+type SortOrder = "asc" | "desc";
 
 export default function DataJournalPage() {
   const [journal, setJournal] = useState<Journal[]>();
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-
   const [limit] = useState(5);
+
+  const [sortBy, setSortBy] = useState<keyof Journal>("tanggal");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
 
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   const fetchJournal = async () => {
     try {
       setLoading(true);
-
       const response: GetJournalsResponse = await getJournals({
         page,
         limit,
-        sort_by: "tanggal",
-        sort_order: "asc",
+        sort_by: sortBy,
+        sort_order: sortOrder,
       });
 
       setJournal(response.data);
@@ -54,67 +65,86 @@ export default function DataJournalPage() {
 
   useEffect(() => {
     fetchJournal();
-  }, [page]);
+  }, [page, sortBy, sortOrder]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <Spinner className="h-6 w-6" />
-      </div>
+  const handleSort = (column: keyof Journal) => {
+    if (sortBy === column) {
+      // toggle order
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(column);
+      setSortOrder("asc");
+    }
+    setPage(1); // reset page saat ganti sorting
+  };
+
+  const renderSortIcon = (column: keyof Journal) => {
+    if (sortBy !== column) {
+      return <span className="w-4 h-4 inline-block ml-1" />; // placeholder
+    }
+    return sortOrder === "asc" ? (
+      <ArrowUp className="inline-block w-4 h-4 ml-1" />
+    ) : (
+      <ArrowDown className="inline-block w-4 h-4 ml-1" />
     );
-  }
+  };
 
   return (
     <div className="p-6 md:p-10 space-y-6">
       {/* Header */}
       <header className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
-        <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">
+        <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50 mb-7">
           Data Trading Journal
         </h1>
       </header>
+
+      <p>
+        <JournalForm mode="create" triggerText="Tambah Journal" />
+      </p>
+
       <div className="mt-8 overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800 shadow">
-        <div className="max-h-[600px] overflow-auto">
+        <div className="max-h-[600px] overflow-auto relative">
           <Table>
             <TableHeader className="sticky top-0 bg-zinc-100 dark:bg-zinc-900 z-10">
               <TableRow>
-                <TableHead className="w-[150px] font-bold text-zinc-700 dark:text-zinc-300">
-                  Tanggal
-                </TableHead>
-                <TableHead className="font-bold text-zinc-700 dark:text-zinc-300">
-                  Pair
-                </TableHead>
-                <TableHead className="font-bold text-zinc-700 dark:text-zinc-300">
-                  Side
-                </TableHead>
-                <TableHead className="font-bold text-zinc-700 dark:text-zinc-300">
-                  Lot
-                </TableHead>
-                <TableHead className="font-bold text-zinc-700 dark:text-zinc-300">
-                  Entry
-                </TableHead>
-                <TableHead className="font-bold text-zinc-700 dark:text-zinc-300">
-                  Stop Lose
-                </TableHead>
-                <TableHead className="font-bold text-zinc-700 dark:text-zinc-300">
-                  Take Profit
-                </TableHead>
-                <TableHead className="font-bold text-zinc-700 dark:text-zinc-300">
-                  Before
-                </TableHead>
-                <TableHead className="font-bold text-zinc-700 dark:text-zinc-300">
-                  After
-                </TableHead>
-                <TableHead className="font-bold text-zinc-700 dark:text-zinc-300">
-                  Profit
-                </TableHead>
-                <TableHead className="font-bold text-zinc-700 dark:text-zinc-300">
-                  Result
-                </TableHead>
+                {[
+                  { label: "Tanggal", key: "tanggal" },
+                  { label: "Pair", key: "pair" },
+                  { label: "Side", key: "side" },
+                  { label: "Lot", key: "lot" },
+                  { label: "Entry", key: "harga_entry" },
+                  { label: "Stop Lose", key: "harga_stop_loss" },
+                  { label: "Take Profit", key: "harga_take_profit" },
+                  { label: "Before", key: "analisa_before" },
+                  { label: "After", key: "analisa_after" },
+                  { label: "Profit", key: "profit" },
+                  { label: "Result", key: "win_lose" },
+                ].map((col) => (
+                  <TableHead
+                    key={col.key}
+                    className="cursor-pointer font-bold text-zinc-700 dark:text-zinc-300"
+                    onClick={() => handleSort(col.key as keyof Journal)}
+                  >
+                    <div className="flex items-center">
+                      {col.label}
+                      {renderSortIcon(col.key as keyof Journal)}
+                    </div>
+                  </TableHead>
+                ))}
               </TableRow>
             </TableHeader>
 
             <TableBody>
-              {journal && journal.length > 0 ? (
+              {loading ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={11}
+                    className="text-center py-6 text-zinc-500 dark:text-zinc-400"
+                  >
+                    <Spinner className="h-6 w-6 mx-auto" />
+                  </TableCell>
+                </TableRow>
+              ) : journal && journal.length > 0 ? (
                 journal.map((item) => (
                   <TableRow
                     key={item.id}
@@ -123,11 +153,9 @@ export default function DataJournalPage() {
                     <TableCell className="font-medium">
                       {new Date(item.tanggal).toLocaleDateString("id-ID")}
                     </TableCell>
-
                     <TableCell className="uppercase tracking-wide font-semibold text-zinc-700 dark:text-zinc-200">
                       {item.pair}
                     </TableCell>
-
                     <TableCell>
                       <span
                         className={`px-2 py-1 rounded-md text-xs font-semibold ${
@@ -139,33 +167,38 @@ export default function DataJournalPage() {
                         {item.side.toUpperCase()}
                       </span>
                     </TableCell>
-
                     <TableCell>{item.lot.toFixed(2)}</TableCell>
-
                     <TableCell>{item.harga_entry}</TableCell>
-
                     <TableCell>{item.harga_stop_loss}</TableCell>
-
                     <TableCell>{item.harga_take_profit}</TableCell>
-
                     <TableCell>
-                      <img
-                        src={item.analisa_before}
-                        alt="before"
-                        className="w-20 h-20 object-cover rounded cursor-zoom-in"
-                        onClick={() => setPreviewImage(item.analisa_before)}
-                      />
+                      {isValidImage(item.analisa_before) ? (
+                        <img
+                          src={item.analisa_before}
+                          alt="before"
+                          className="w-20 h-20 object-cover rounded cursor-zoom-in"
+                          onClick={() => setPreviewImage(item.analisa_before)}
+                        />
+                      ) : (
+                        <div className="w-20 h-20 flex items-center justify-center bg-gray-100 rounded">
+                          <ImageOff className="text-gray-400" size={32} />
+                        </div>
+                      )}
                     </TableCell>
-
                     <TableCell>
-                      <img
-                        src={item.analisa_after}
-                        alt="after"
-                        className="w-20 h-20 object-cover rounded cursor-zoom-in"
-                        onClick={() => setPreviewImage(item.analisa_after)}
-                      />
+                      {isValidImage(item.analisa_after) ? (
+                        <img
+                          src={item.analisa_after}
+                          alt="after"
+                          className="w-20 h-20 object-cover rounded cursor-zoom-in"
+                          onClick={() => setPreviewImage(item.analisa_after)}
+                        />
+                      ) : (
+                        <div className="w-20 h-20 flex items-center justify-center bg-gray-100 rounded">
+                          <ImageOff className="text-gray-400" size={32} />
+                        </div>
+                      )}
                     </TableCell>
-
                     <TableCell
                       className={`font-semibold ${
                         item.profit >= 0
@@ -173,9 +206,8 @@ export default function DataJournalPage() {
                           : "text-red-600 dark:text-red-400"
                       }`}
                     >
-                      {item.profit.toLocaleString("id-ID")}
+                      {(item.profit ?? 0).toLocaleString("id-ID")}
                     </TableCell>
-
                     <TableCell>
                       <span
                         className={`px-2 py-1 rounded-md text-xs font-bold ${
@@ -186,7 +218,7 @@ export default function DataJournalPage() {
                             : "bg-gray-300 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
                         }`}
                       >
-                        {item.win_lose.toUpperCase()}
+                        {(item.win_lose ?? "-").toUpperCase()}
                       </span>
                     </TableCell>
                   </TableRow>
@@ -194,10 +226,10 @@ export default function DataJournalPage() {
               ) : (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={11}
                     className="text-center py-6 text-zinc-500 dark:text-zinc-400"
                   >
-                    Belum ada data journal.
+                    There is no journal data yet.
                   </TableCell>
                 </TableRow>
               )}
@@ -238,7 +270,7 @@ export default function DataJournalPage() {
         </PaginationContent>
       </Pagination>
 
-       {previewImage && (
+      {previewImage && (
         <div
           className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
           onClick={() => setPreviewImage(null)}
@@ -252,7 +284,6 @@ export default function DataJournalPage() {
               alt="preview"
               className="max-h-[80vh] rounded"
             />
-
             <button
               className="mt-4 w-full py-2 bg-red-500 text-white rounded"
               onClick={() => setPreviewImage(null)}

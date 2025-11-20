@@ -35,6 +35,7 @@ export const createJournal = async (body: JournalFormBody): Promise<Journal> => 
   const response = await api.post<Journal>("/functions/v1/add-journal", formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });
+  console.log("response create", response)
 
   return response.data;
 };
