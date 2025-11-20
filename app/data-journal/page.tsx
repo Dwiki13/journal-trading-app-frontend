@@ -69,18 +69,17 @@ export default function DataJournalPage() {
 
   const handleSort = (column: keyof Journal) => {
     if (sortBy === column) {
-      // toggle order
       setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
     } else {
       setSortBy(column);
       setSortOrder("asc");
     }
-    setPage(1); // reset page saat ganti sorting
+    setPage(1);
   };
 
   const renderSortIcon = (column: keyof Journal) => {
     if (sortBy !== column) {
-      return <span className="w-4 h-4 inline-block ml-1" />; // placeholder
+      return <span className="w-4 h-4 inline-block ml-1" />; 
     }
     return sortOrder === "asc" ? (
       <ArrowUp className="inline-block w-4 h-4 ml-1" />
