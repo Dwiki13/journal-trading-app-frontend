@@ -2,15 +2,15 @@
 import api from "@/lib/api";
 import { GetJournalsResponse, JournalFormBody, Journal } from "@/app/type/journal";
 
-// --- Get Journals with filters & pagination ---
 interface GetJournalsParams {
   page?: number;
   limit?: number;
   pair?: string;
+  side?: string;
   win_lose?: "win" | "lose" | "draw";
   date_from?: string;
   date_to?: string;
-  sort_by?: string; // e.g., "tanggal"
+  sort_by?: string; 
   sort_order?: "asc" | "desc";
 }
 
@@ -19,7 +19,6 @@ export const getJournals = async (params?: GetJournalsParams): Promise<GetJourna
   return response.data;
 };
 
-// --- Create Journal ---
 export const createJournal = async (body: JournalFormBody): Promise<Journal> => {
   const formData = new FormData();
   Object.entries(body).forEach(([key, value]) => {
@@ -40,7 +39,6 @@ export const createJournal = async (body: JournalFormBody): Promise<Journal> => 
   return response.data;
 };
 
-// --- Update Journal ---
 export const updateJournal = async (id: string, body: JournalFormBody): Promise<Journal> => {
   const formData = new FormData();
   formData.append("id", id);
