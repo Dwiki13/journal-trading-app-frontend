@@ -10,36 +10,42 @@ export interface AuthState {
   loginUser: (email: string, password: string) => Promise<User>;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
-  token: null,
-  user: null,
-  loading: false,
+export const useAuthStore = create<AuthState>((set) => {
+  const storedUser = typeof window !== "undefined" ? localStorage.getItem("user") : null;
+  const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
-  loginUser: async (email, password) => {
-    set({ loading: true });
-    try {
-      const res = await api.post(
-        "/auth/v1/token?grant_type=password",
-        { email, password } as LoginPayload,
-        {
-          headers: {
-            apikey: process.env.NEXT_PUBLIC_SUPABASE_API_KEY || "",
-            "Content-Type": "application/json",
-          },
-        }
-      );
+  return {
+    token: storedToken ?? null,
+    user: storedUser ? JSON.parse(storedUser) : null,
+    loading: false,
 
-      const token = res.data.access_token; 
-      const user = res.data.user;
+    loginUser: async (email, password) => {
+      set({ loading: true });
+      try {
+        const res = await api.post(
+          "/auth/v1/token?grant_type=password",
+          { email, password } as LoginPayload,
+          {
+            headers: {
+              apikey: process.env.NEXT_PUBLIC_SUPABASE_API_KEY || "",
+              "Content-Type": "application/json",
+            },
+          }
+        );
 
-      set({ token, user });
-      localStorage.setItem("token", token ?? "");
-      // api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-      localStorage.setItem("user", JSON.stringify(user));
+        const token = res.data.access_token; 
+        const user = res.data.user;
 
-      return user;
-    } finally {
-      set({ loading: false });
-    }
-  },
-}));
+        set({ token, user });
+        localStorage.setItem("token", token ?? "");
+        localStorage.setItem("user", JSON.stringify(user));
+        console.log(" auth state user", user)
+
+        return user;
+      } finally {
+        set({ loading: false });
+      }
+    },
+  };
+});
+
