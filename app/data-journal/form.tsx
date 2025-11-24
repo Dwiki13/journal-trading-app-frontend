@@ -120,43 +120,87 @@ export default function JournalForm({
   const [existingAfter, setExistingAfter] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isEdit && journal) {
-      form.reset({
-        modal: journal.modal?.toString() ?? "",
-        modal_type:
-          journal.modal_type === "usd" ||
-          journal.modal_type === "usc" ||
-          journal.modal_type === "idr"
-            ? journal.modal_type
-            : "",
-        tanggal: journal.tanggal ?? "",
-        pair: journal.pair ?? "",
-        side: journal.side ?? "",
-        lot: journal.lot?.toString() ?? "",
-        harga_entry: journal.harga_entry?.toString() ?? "",
-        harga_take_profit: journal.harga_take_profit?.toString() ?? "",
-        harga_stop_loss: journal.harga_stop_loss?.toString() ?? "",
-        reason: journal.reason ?? "",
-        win_lose: journal.win_lose ?? "",
-        profit: journal.profit?.toString() ?? "",
-      });
-
-      setExistingBefore(journal.analisa_before || null);
-      setExistingAfter(journal.analisa_after || null);
-      const detectedType = detectTypeFromPair(journal.pair);
-      setType(detectedType);
-
-      setAnalisaBefore(null);
-      setAnalisaAfter(null);
+    if (open) {
+      if (!isEdit) {
+        // Mode create → reset form & file states
+        form.reset({
+          modal: "",
+          modal_type: "",
+          tanggal: "",
+          pair: "",
+          side: "",
+          lot: "",
+          harga_entry: "",
+          harga_take_profit: "",
+          harga_stop_loss: "",
+          reason: "",
+          win_lose: "",
+          profit: "",
+        });
+        setAnalisaBefore(null);
+        setAnalisaAfter(null);
+        setExistingBefore(null);
+        setExistingAfter(null);
+        setType(undefined);
+        setSearch("");
+        setConvertedModal("");
+      } else if (journal) {
+        // Mode edit → reset form ke journal
+        form.reset({
+          modal: journal.modal?.toString() ?? "",
+          modal_type:
+            journal.modal_type === "usd" ||
+            journal.modal_type === "usc" ||
+            journal.modal_type === "idr"
+              ? journal.modal_type
+              : "",
+          tanggal: journal.tanggal ?? "",
+          pair: journal.pair ?? "",
+          side: journal.side ?? "",
+          lot: journal.lot?.toString() ?? "",
+          harga_entry: journal.harga_entry?.toString() ?? "",
+          harga_take_profit: journal.harga_take_profit?.toString() ?? "",
+          harga_stop_loss: journal.harga_stop_loss?.toString() ?? "",
+          reason: journal.reason ?? "",
+          win_lose: journal.win_lose ?? "",
+          profit: journal.profit?.toString() ?? "",
+        });
+        setExistingBefore(journal.analisa_before || null);
+        setExistingAfter(journal.analisa_after || null);
+        setAnalisaBefore(null);
+        setAnalisaAfter(null);
+        setType(detectTypeFromPair(journal.pair));
+        setSearch("");
+        if (
+          journal.modal &&
+          journal.modal_type &&
+          journal.modal_type !== "idr"
+        ) {
+          convertModalToIDR(Number(journal.modal), journal.modal_type as any)
+            .then((res) =>
+              setConvertedModal("≈ Rp " + res.toLocaleString("id-ID"))
+            )
+            .catch(() => setConvertedModal(""));
+        } else {
+          setConvertedModal("");
+        }
+      }
     }
-  }, [isEdit, journal, form]);
+  }, [open, isEdit, journal, form]);
 
   const fetchPair = async () => {
     try {
       const params: PairParams = {};
       if (type) params.type = type;
       const response: PairsResponse = await getPairs(params);
-      setPair(response.data);
+
+      // Jika edit dan nilai existing belum ada di array, tambahkan
+      let pairList = response.data;
+      if (isEdit && journal?.pair && !pairList.includes(journal.pair)) {
+        pairList = [journal.pair, ...pairList];
+      }
+
+      setPair(pairList);
     } catch (err) {
       console.error(err);
     }
@@ -171,8 +215,10 @@ export default function JournalForm({
   }, [open]);
 
   useEffect(() => {
-    form.setValue("pair", "");
-    setSearch("");
+    if (!isEdit) {
+      form.setValue("pair", "");
+      setSearch("");
+    }
   }, [type]);
 
   useEffect(() => {
@@ -231,13 +277,6 @@ export default function JournalForm({
     setLoading(true);
     try {
       let finalModal = values.modal;
-      if (values.modal_type === "usc" || values.modal_type === "usd") {
-        const result = await convertModalToIDR(
-          Number(values.modal),
-          values.modal_type as any
-        );
-        finalModal = result.toString();
-      }
 
       const formData = new FormData();
       formData.append("modal", finalModal || "");
@@ -272,7 +311,6 @@ export default function JournalForm({
 
       if (onSuccess) onSuccess();
       setOpen(false);
-      router.push("/data-journal");
     } catch (err: any) {
       toast.error(err.message || "Failed to submit journal");
     } finally {
@@ -584,7 +622,6 @@ export default function JournalForm({
                   }
                 />
 
-                {/* If EDIT mode, show EXISTING image — hanya jika user belum upload baru */}
                 {existingBefore && !analisaBefore && (
                   <img
                     src={existingBefore}

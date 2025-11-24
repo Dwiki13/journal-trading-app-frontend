@@ -5,7 +5,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { getJournals } from "../store/journalStore";
 import { GetJournalsResponse, Journal } from "../type/journal";
 import { ArrowUp, ArrowDown, ImageOff } from "lucide-react";
-import { Pencil, Trash2 } from "lucide-react";
+import { DeleteJournal } from "./delete";
 import {
   Table,
   TableBody,
@@ -153,7 +153,7 @@ export default function DataJournalPage() {
         <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50 mb-7">
           Data Trading Journal
         </h1>
-        <JournalForm mode="create" triggerText="Tambah Journal" />
+        <JournalForm mode="create" triggerText="Tambah Journal" onSuccess={() => fetchJournal()} />
       </header>
 
       <div className="flex flex-wrap gap-4 mb-6 items-end">
@@ -299,6 +299,7 @@ export default function DataJournalPage() {
                   { label: "Entry", key: "harga_entry" },
                   { label: "Stop Lose", key: "harga_stop_loss" },
                   { label: "Take Profit", key: "harga_take_profit" },
+                  { label: "Reason", key: "reason" },
                   { label: "Before", key: "analisa_before" },
                   { label: "After", key: "analisa_after" },
                   { label: "Profit", key: "profit" },
@@ -351,6 +352,7 @@ export default function DataJournalPage() {
                     <TableCell>{item.harga_entry}</TableCell>
                     <TableCell>{item.harga_stop_loss}</TableCell>
                     <TableCell>{item.harga_take_profit}</TableCell>
+                    <TableCell>{item.reason}</TableCell>
                     <TableCell>
                       {isValidImage(item.analisa_before) ? (
                         <img
@@ -407,20 +409,11 @@ export default function DataJournalPage() {
                           mode="edit"
                           journal={item}
                           triggerText="Edit"
+                          onSuccess={() => fetchJournal()}
                         />
 
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => {
-                            // nanti bisa sambung ke delete API lo
-                            if (confirm("Yakin hapus journal ini?")) {
-                              console.log("delete:", item.id);
-                            }
-                          }}
-                        >
-                          Delete
-                        </Button>
+                       <DeleteJournal journalId={item.id} onSuccess={() => fetchJournal()}/>
+
                       </div>
                     </TableCell>
                   </TableRow>
