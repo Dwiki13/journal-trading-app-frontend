@@ -51,6 +51,7 @@ export default function DataJournalPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [limit] = useState(5);
+  const [openPopover, setOpenPopover] = useState(false);
 
   const [sortBy, setSortBy] = useState<keyof Journal>("tanggal");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
@@ -116,6 +117,10 @@ export default function DataJournalPage() {
 
   useEffect(() => {
     fetchPair();
+  }, [type]);
+
+  useEffect(() => {
+    setSearch("");
   }, [type]);
 
   const handleSort = (column: keyof Journal) => {
@@ -267,7 +272,10 @@ export default function DataJournalPage() {
                     key={p}
                     variant="ghost"
                     className="w-full justify-start"
-                    onClick={() => setSearch(p)}
+                    onClick={() => {
+                      setSearch(p);
+                      setOpenPopover(false);
+                    }}
                   >
                     {p}
                   </Button>

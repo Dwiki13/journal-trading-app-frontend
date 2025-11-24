@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { useEffect, useState } from "react";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
 import {
   Dialog,
   DialogContent,
@@ -12,12 +11,37 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Loader2 } from "lucide-react";
 import { convertModalToIDR } from "@/lib/currencyConverter";
 import { createJournal, updateJournal } from "@/app/store/journalStore";
 import { toast } from "sonner";
 import { Journal } from "@/app/type/journal";
 import { useRouter } from "next/navigation";
-import { Card, CardContent } from "@/components/ui/card";
+import { PairParams, PairsResponse, PairType } from "../type/pairs";
+import { getPairs } from "../store/pairsStore";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface JournalFormModalProps {
   mode: "create" | "edit";
@@ -26,7 +50,24 @@ interface JournalFormModalProps {
   onSuccess?: () => void;
 }
 
-export default function Form({
+const journalSchema = z.object({
+  modal: z.string().optional(),
+  modal_type: z.enum(["", "usd", "usc", "idr"] as const).optional(),
+  tanggal: z.string().min(1, "Tanggal wajib diisi"),
+  pair: z.string().min(1, "Pair wajib dipilih"),
+  side: z.enum(["", "buy", "sell"] as const),
+  lot: z.string().optional(),
+  harga_entry: z.string().optional(),
+  harga_take_profit: z.string().optional(),
+  harga_stop_loss: z.string().optional(),
+  reason: z.string().optional(),
+  win_lose: z.enum(["", "win", "lose", "draw"] as const).optional(),
+  profit: z.string().optional(),
+});
+
+type JournalFormValues = z.infer<typeof journalSchema>;
+
+export default function JournalForm({
   mode,
   journal,
   triggerText,
@@ -36,32 +77,51 @@ export default function Form({
   const [loading, setLoading] = useState(false);
   const [convertedModal, setConvertedModal] = useState<string>("");
   const router = useRouter();
+  const [pair, setPair] = useState<string[]>([]);
+  const [type, setType] = useState<PairType>();
+  const [search, setSearch] = useState<string | null>();
+  const [openPopover, setOpenPopover] = useState(false);
 
-  const [form, setForm] = useState({
-    modal: "",
-    modal_type: "",
-    tanggal: "",
-    pair: "",
-    side: "",
-    lot: "",
-    harga_entry: "",
-    harga_take_profit: "",
-    harga_stop_loss: "",
-    reason: "",
-    win_lose: "",
-    profit: "",
-    analisaBefore: null as File | null,
-    analisaAfter: null as File | null,
+  const isEdit = mode === "edit";
+
+  const form = useForm<JournalFormValues>({
+    resolver: zodResolver(journalSchema),
+    defaultValues: {
+      modal: "",
+      modal_type: "",
+      tanggal: "",
+      pair: "",
+      side: "",
+      lot: "",
+      harga_entry: "",
+      harga_take_profit: "",
+      harga_stop_loss: "",
+      reason: "",
+      win_lose: "",
+      profit: "",
+    },
   });
 
-  // === Populate form when editing ===
+  const [analisaBefore, setAnalisaBefore] = useState<File | null>(null);
+  const [analisaAfter, setAnalisaAfter] = useState<File | null>(null);
+  const [existingBefore, setExistingBefore] = useState<string | null>(null);
+  const [existingAfter, setExistingAfter] = useState<string | null>(null);
+
   useEffect(() => {
-    if (mode === "edit" && journal) {
-      setForm({
+    if (isEdit && journal) {
+      form.reset({
         modal: journal.modal?.toString() ?? "",
-        modal_type: journal.modal_type ?? "",
+        modal_type:
+          journal.modal_type === "usd" ||
+          journal.modal_type === "usc" ||
+          journal.modal_type === "idr"
+            ? journal.modal_type
+            : "",
         tanggal: journal.tanggal ?? "",
-        pair: journal.pair ?? "",
+        pair:
+          journal.pair === "XAUUSD" || journal.pair === "BTCUSD"
+            ? journal.pair
+            : "",
         side: journal.side ?? "",
         lot: journal.lot?.toString() ?? "",
         harga_entry: journal.harga_entry?.toString() ?? "",
@@ -70,78 +130,130 @@ export default function Form({
         reason: journal.reason ?? "",
         win_lose: journal.win_lose ?? "",
         profit: journal.profit?.toString() ?? "",
-        analisaBefore: null,
-        analisaAfter: null,
       });
+
+      setAnalisaBefore(null);
+      setAnalisaAfter(null);
     }
-  }, [mode, journal]);
+  }, [isEdit, journal, form]);
 
-  // === Auto convert modal when value or type changes ===
+  const fetchPair = async () => {
+    try {
+      const params: PairParams = {};
+      if (type) params.type = type;
+      const response: PairsResponse = await getPairs(params);
+      setPair(response.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
+    fetchPair();
+  }, [type]);
+
+  useEffect(() => {
+    if (!open) setSearch("");
+  }, [open]);
+
+  useEffect(() => {
+    form.setValue("pair", "");
+    setSearch("");
+  }, [type]);
+
+  useEffect(() => {
+    const vModal = form.getValues("modal");
+    const vType = form.getValues("modal_type");
     const doConvert = async () => {
-      if (!form.modal || !form.modal_type) {
+      if (!vModal || !vType) {
         setConvertedModal("");
         return;
       }
-
-      if (form.modal_type === "idr") {
+      if (vType === "idr") {
         setConvertedModal("");
         return;
       }
-
       try {
-        const result = await convertModalToIDR(
-          Number(form.modal),
-          form.modal_type as any
-        );
+        const result = await convertModalToIDR(Number(vModal), vType as any);
         setConvertedModal("≈ Rp " + result.toLocaleString("id-ID"));
-      } catch (err) {
+      } catch {
         setConvertedModal("");
       }
     };
 
     doConvert();
-  }, [form.modal, form.modal_type]);
+    const subs = form.watch((val, { name }) => {
+      if (name === "modal" || name === "modal_type") {
+        const m = form.getValues("modal");
+        const t = form.getValues("modal_type");
+        if (!m || !t) {
+          setConvertedModal("");
+          return;
+        }
+        if (t === "idr") {
+          setConvertedModal("");
+          return;
+        }
+        convertModalToIDR(Number(m), t as any)
+          .then((res) =>
+            setConvertedModal("≈ Rp " + res.toLocaleString("id-ID"))
+          )
+          .catch(() => setConvertedModal(""));
+      }
+    });
 
-  const handleChange = (e: any) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
+    return () => subs.unsubscribe();
+  }, [form]);
 
   const handleFile = (
     name: "analisaBefore" | "analisaAfter",
     file: File | null
   ) => {
-    setForm({ ...form, [name]: file });
+    if (name === "analisaBefore") setAnalisaBefore(file);
+    else setAnalisaAfter(file);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (values: JournalFormValues) => {
     setLoading(true);
-
     try {
-      let finalModal = form.modal;
-
-      if (form.modal_type === "usc" || form.modal_type === "usd") {
+      let finalModal = values.modal;
+      if (values.modal_type === "usc" || values.modal_type === "usd") {
         const result = await convertModalToIDR(
-          Number(form.modal),
-          form.modal_type as any
+          Number(values.modal),
+          values.modal_type as any
         );
         finalModal = result.toString();
       }
 
-      const body = {
-        ...form,
-        modal: form.modal,
-        modal_type: form.modal_type,
-      };
+      const formData = new FormData();
+      formData.append("modal", finalModal || "");
+      formData.append("modal_type", values.modal_type || "");
+      formData.append("tanggal", values.tanggal);
+      formData.append("pair", values.pair);
+      formData.append("side", values.side);
+      formData.append("lot", values.lot || "");
+      formData.append("harga_entry", values.harga_entry || "");
+      formData.append("harga_take_profit", values.harga_take_profit || "");
+      formData.append("harga_stop_loss", values.harga_stop_loss || "");
+      formData.append("reason", values.reason || "");
+      formData.append("win_lose", values.win_lose || "");
+      formData.append("profit", values.profit || "");
 
-      if (mode === "create") {
-        await createJournal(body as any);
-        toast.success("Journal added successfully!");
-      } else {
+      if (analisaBefore) {
+        formData.append("analisaBefore", analisaBefore);
+      }
+
+      if (analisaAfter) {
+        formData.append("analisaAfter", analisaAfter);
+      }
+
+      if (isEdit) {
         if (!journal?.id) throw new Error("Missing journal ID");
-        await updateJournal(journal.id, body as any);
+        await updateJournal(journal.id, formData);
         toast.success("Journal updated successfully!");
+      } else {
+        await createJournal(formData);
+        toast.success("Journal added successfully!");
       }
 
       if (onSuccess) onSuccess();
@@ -160,246 +272,375 @@ export default function Form({
         <Button>{triggerText}</Button>
       </DialogTrigger>
 
-      <DialogContent className="max-h-[90vh] overflow-y-auto w-full max-w-3xl">
+      <DialogContent className="max-h-[90vh] overflow-y-auto w-full max-w-3xl sm:max-w-[700px]">
         <DialogHeader>
           <DialogTitle>
-            {mode === "create" ? "Tambah Journal" : "Edit Journal"}
+            {isEdit ? "Edit Journal" : "Tambah Journal"}
           </DialogTitle>
         </DialogHeader>
 
-        <Card className="mt-2 border rounded-xl bg-background shadow-sm">
-          <CardContent className="p-6">
-            <form className="space-y-6" onSubmit={handleSubmit}>
-              {/* Row 1 - Modal */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <Label>Modal</Label>
-                  <Input
-                    name="modal"
-                    value={form.modal}
-                    onChange={handleChange}
-                    placeholder="ex: 2000"
-                    className="mt-1"
-                  />
-                  {convertedModal && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {convertedModal}
-                    </p>
-                  )}
-                </div>
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="space-y-4 mt-4"
+          >
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <FormField
+                control={form.control}
+                name="modal"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Modal</FormLabel>
+                    <FormControl>
+                      <Input placeholder="ex: 2000" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                    {convertedModal && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {convertedModal}
+                      </p>
+                    )}
+                  </FormItem>
+                )}
+              />
 
-                <div>
-                  <Label>Tipe Modal</Label>
-                  <select
-                    name="modal_type"
-                    value={form.modal_type}
-                    onChange={handleChange}
-                    className="mt-1 w-full rounded-md border bg-background p-2"
-                  >
-                    <option value="">Pilih</option>
-                    <option value="usd">USD</option>
-                    <option value="usc">US Cent</option>
-                    <option value="idr">IDR</option>
-                  </select>
-                </div>
+              <FormField
+                control={form.control}
+                name="modal_type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipe Modal</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Pilih" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="usd">USD</SelectItem>
+                        <SelectItem value="usc">US Cent</SelectItem>
+                        <SelectItem value="idr">IDR</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-                <div>
-                  <Label>Tanggal</Label>
-                  <Input
-                    type="date"
-                    name="tanggal"
-                    value={form.tanggal}
-                    onChange={handleChange}
-                    required
-                    className="mt-1"
-                  />
-                </div>
-              </div>
+              <FormField
+                control={form.control}
+                name="tanggal"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tanggal</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} required />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
-              {/* Row 2 */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Pair</Label>
-                   <select
-                    name="pair"
-                    value={form.pair}
-                    onChange={handleChange}
-                    className="mt-1 w-full rounded-md border bg-background p-2"
-                    required
-                  >
-                    <option value="">Pilih</option>
-                    <option value="XAUUSD">XAUUSD</option>
-                    <option value="BTCUSD">BTCUSD</option>
-                  </select>
-                </div>
-
-                <div>
-                  <Label>Side</Label>
-                  <select
-                    name="side"
-                    value={form.side}
-                    onChange={handleChange}
-                    className="mt-1 w-full rounded-md border bg-background p-2"
-                    required
-                  >
-                    <option value="">Pilih</option>
-                    <option value="buy">Buy</option>
-                    <option value="sell">Sell</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Row 3 */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <Label>Entry</Label>
-                  <Input
-                    name="harga_entry"
-                    value={form.harga_entry}
-                    onChange={handleChange}
-                    className="mt-1"
-                  />
-                </div>
-
-                <div>
-                  <Label>Take Profit</Label>
-                  <Input
-                    name="harga_take_profit"
-                    value={form.harga_take_profit}
-                    onChange={handleChange}
-                    className="mt-1"
-                  />
-                </div>
-
-                <div>
-                  <Label>Stop Loss</Label>
-                  <Input
-                    name="harga_stop_loss"
-                    value={form.harga_stop_loss}
-                    onChange={handleChange}
-                    className="mt-1"
-                  />
-                </div>
-              </div>
-
-              {/* Lot */}
-              <div>
-                <Label>Lot</Label>
-                <Input
-                  name="lot"
-                  value={form.lot}
-                  onChange={handleChange}
-                  className="mt-1"
-                />
-              </div>
-
-              {/* Reason */}
-              <div>
-                <Label>Reason</Label>
-                <Textarea
-                  name="reason"
-                  value={form.reason}
-                  onChange={handleChange}
-                  className="min-h-[90px] mt-1"
-                />
-              </div>
-
-              {/* Win / Lose */}
-              <div>
-                <Label>Hasil</Label>
-                <select
-                  name="win_lose"
-                  value={form.win_lose}
-                  onChange={handleChange}
-                  className="mt-1 w-full rounded-md border bg-background p-2"
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* TYPE FIELD */}
+              <FormItem>
+                <FormLabel>Type</FormLabel>
+                <Select
+                  value={type ?? "all"}
+                  onValueChange={(val) =>
+                    setType(val === "all" ? undefined : (val as PairType))
+                  }
                 >
-                  <option value="">Pilih Hasil</option>
-                  <option value="win">Win</option>
-                  <option value="lose">Lose</option>
-                  <option value="draw">Draw</option>
-                </select>
-              </div>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="crypto">Crypto</SelectItem>
+                    <SelectItem value="forex">Forex</SelectItem>
+                    <SelectItem value="commodity">Commodity</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FormItem>
 
-              {/* Profit */}
+              {/* PAIR FIELD */}
+              <FormField
+                control={form.control}
+                name="pair"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Pair</FormLabel>
+                    <Popover open={openPopover} onOpenChange={setOpenPopover}>
+                      <PopoverTrigger asChild>
+                        <Button className="w-full text-left" variant="outline">
+                          {field.value || "Select pair"}
+                        </Button>
+                      </PopoverTrigger>
+
+                      <PopoverContent
+                        sideOffset={4}
+                        className="max-h-60 p-2 overflow-y-auto overscroll-contain"
+                        onWheel={(e) => e.stopPropagation()}
+                      >
+                        <Input
+                          placeholder="Search pair..."
+                          value={search ?? ""}
+                          onChange={(e) => setSearch(e.target.value)}
+                          className="mb-2"
+                        />
+
+                        {pair
+                          .filter((p) =>
+                            p
+                              .toLowerCase()
+                              .includes((search ?? "").toLowerCase())
+                          )
+                          .map((p) => (
+                            <Button
+                              key={p}
+                              variant="ghost"
+                              className="w-full justify-start"
+                              onClick={() => {
+                                field.onChange(p);
+                                setSearch(p);
+                                setOpenPopover(false);
+                              }}
+                            >
+                              {p}
+                            </Button>
+                          ))}
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* SIDE FIELD */}
+              <FormField
+                control={form.control}
+                name="side"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Side</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Pilih" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="buy">Buy</SelectItem>
+                        <SelectItem value="sell">Sell</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <FormField
+                control={form.control}
+                name="harga_entry"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Entry</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Harga entry" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="harga_take_profit"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Take Profit</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Harga TP" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="harga_stop_loss"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Stop Loss</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="Harga SL" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name="lot"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Lot</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="Lot" type="number" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="reason"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Reason</FormLabel>
+                  <FormControl>
+                    <Textarea {...field} className="min-h-[90px]" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="win_lose"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Hasil</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Pilih Hasil" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="win">Win</SelectItem>
+                      <SelectItem value="lose">Lose</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="profit"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Profit</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="Profit" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <Label>Profit</Label>
-                <Input
-                  name="profit"
-                  value={form.profit}
-                  onChange={handleChange}
-                  className="mt-1"
+                <FormLabel>Analisa Sebelum</FormLabel>
+
+                <label
+                  htmlFor="analisa-before"
+                  className="mt-2 flex items-center justify-center border rounded-lg p-3 cursor-pointer bg-muted hover:bg-muted/70 text-sm"
+                >
+                  {analisaBefore ? analisaBefore.name : "Pilih Gambar"}
+                </label>
+
+                <input
+                  id="analisa-before"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) =>
+                    handleFile("analisaBefore", e.target.files?.[0] || null)
+                  }
                 />
+
+                {/* If EDIT mode, show EXISTING image — hanya jika user belum upload baru */}
+                {existingBefore && !analisaBefore && (
+                  <img
+                    src={existingBefore}
+                    className="mt-2 h-32 rounded border object-cover"
+                    alt="analisa before existing"
+                  />
+                )}
+
+                {/* Show NEW uploaded image */}
+                {analisaBefore && (
+                  <img
+                    src={URL.createObjectURL(analisaBefore)}
+                    className="mt-2 h-32 rounded border object-cover"
+                    alt="analisa before"
+                  />
+                )}
               </div>
 
-              {/* Photos */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <Label>Analisa Sebelum</Label>
-                  <label
-                    htmlFor="analisa-before"
-                    className="mt-2 flex items-center justify-center border rounded-lg p-3 cursor-pointer bg-muted hover:bg-muted/70 text-sm"
-                  >
-                    {form.analisaBefore
-                      ? form.analisaBefore.name
-                      : "Pilih Gambar"}
-                  </label>
-                  <input
-                    id="analisa-before"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) =>
-                      handleFile("analisaBefore", e.target.files?.[0] || null)
-                    }
+              <div>
+                <FormLabel>Analisa Sesudah</FormLabel>
+
+                <label
+                  htmlFor="analisa-after"
+                  className="mt-2 flex items-center justify-center border rounded-lg p-3 cursor-pointer bg-muted hover:bg-muted/70 text-sm"
+                >
+                  {analisaAfter ? analisaAfter.name : "Pilih Gambar"}
+                </label>
+
+                <input
+                  id="analisa-after"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) =>
+                    handleFile("analisaAfter", e.target.files?.[0] || null)
+                  }
+                />
+
+                {existingAfter && !analisaAfter && (
+                  <img
+                    src={existingAfter}
+                    className="mt-2 h-32 rounded border object-cover"
+                    alt="analisa after existing"
                   />
+                )}
 
-                  {form.analisaBefore && (
-                    <img
-                      src={URL.createObjectURL(form.analisaBefore)}
-                      className="mt-2 h-32 rounded border object-cover"
-                    />
-                  )}
-                </div>
-
-                <div>
-                  <Label>Analisa Sesudah</Label>
-                  <label
-                    htmlFor="analisa-after"
-                    className="mt-2 flex items-center justify-center border rounded-lg p-3 cursor-pointer bg-muted hover:bg-muted/70 text-sm"
-                  >
-                    {form.analisaAfter
-                      ? form.analisaAfter.name
-                      : "Pilih Gambar"}
-                  </label>
-                  <input
-                    id="analisa-after"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) =>
-                      handleFile("analisaAfter", e.target.files?.[0] || null)
-                    }
+                {analisaAfter && (
+                  <img
+                    src={URL.createObjectURL(analisaAfter)}
+                    className="mt-2 h-32 rounded border object-cover"
+                    alt="analisa after"
                   />
-
-                  {form.analisaAfter && (
-                    <img
-                      src={URL.createObjectURL(form.analisaAfter)}
-                      className="mt-2 h-32 rounded border object-cover"
-                    />
-                  )}
-                </div>
+                )}
               </div>
+            </div>
 
-              <Button type="submit" disabled={loading} className="w-full mt-6">
-                {loading
-                  ? "Processing..."
-                  : mode === "create"
-                  ? "Tambah Journal"
-                  : "Update Journal"}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+            <Button type="submit" disabled={loading} className="w-full mt-2">
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {isEdit ? "Updating..." : "Processing..."}
+                </>
+              ) : isEdit ? (
+                "Update Journal"
+              ) : (
+                "Tambah Journal"
+              )}
+            </Button>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );

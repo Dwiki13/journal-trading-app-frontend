@@ -19,42 +19,28 @@ export const getJournals = async (params?: GetJournalsParams): Promise<GetJourna
   return response.data;
 };
 
-export const createJournal = async (body: JournalFormBody): Promise<Journal> => {
-  const formData = new FormData();
-  Object.entries(body).forEach(([key, value]) => {
-    if (value !== undefined) {
-      if (key === "analisaBefore" || key === "analisaAfter") {
-        formData.append(key, value as File);
-      } else {
-        formData.append(key, value.toString());
-      }
+export const createJournal = async (formData: FormData): Promise<Journal> => {
+  const response = await api.post<Journal>(
+    "/functions/v1/add-journal",
+    formData,
+    {
+      headers: { "Content-Type": "multipart/form-data" },
     }
-  });
-
-  const response = await api.post<Journal>("/functions/v1/add-journal", formData, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
-  console.log("response create", response)
+  );
 
   return response.data;
 };
 
-export const updateJournal = async (id: string, body: JournalFormBody): Promise<Journal> => {
-  const formData = new FormData();
+export const updateJournal = async (id: string, formData: FormData): Promise<Journal> => {
   formData.append("id", id);
-  Object.entries(body).forEach(([key, value]) => {
-    if (value !== undefined) {
-      if (key === "analisaBefore" || key === "analisaAfter") {
-        formData.append(key, value as File);
-      } else {
-        formData.append(key, value.toString());
-      }
-    }
-  });
 
-  const response = await api.put<Journal>("/functions/v1/update-journal", formData, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
+  const response = await api.put<Journal>(
+    "/functions/v1/update-journal",
+    formData,
+    {
+      headers: { "Content-Type": "multipart/form-data" },
+    }
+  );
 
   return response.data;
 };
