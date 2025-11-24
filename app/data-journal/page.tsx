@@ -5,6 +5,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { getJournals } from "../store/journalStore";
 import { GetJournalsResponse, Journal } from "../type/journal";
 import { ArrowUp, ArrowDown, ImageOff } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -302,6 +303,7 @@ export default function DataJournalPage() {
                   { label: "After", key: "analisa_after" },
                   { label: "Profit", key: "profit" },
                   { label: "Result", key: "win_lose" },
+                  { label: "Action", key: "action" },
                 ].map((col) => (
                   <TableHead
                     key={col.key}
@@ -320,7 +322,7 @@ export default function DataJournalPage() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={11} className="text-center py-6">
+                  <TableCell colSpan={12} className="text-center py-6">
                     <Spinner className="h-6 w-6 mx-auto" />
                   </TableCell>
                 </TableRow>
@@ -399,11 +401,33 @@ export default function DataJournalPage() {
                         {(item.win_lose ?? "-").toUpperCase()}
                       </span>
                     </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <JournalForm
+                          mode="edit"
+                          journal={item}
+                          triggerText="Edit"
+                        />
+
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => {
+                            // nanti bisa sambung ke delete API lo
+                            if (confirm("Yakin hapus journal ini?")) {
+                              console.log("delete:", item.id);
+                            }
+                          }}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={11} className="text-center py-6">
+                  <TableCell colSpan={12} className="text-center py-6">
                     There is no journal data yet.
                   </TableCell>
                 </TableRow>

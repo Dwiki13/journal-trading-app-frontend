@@ -50,6 +50,18 @@ interface JournalFormModalProps {
   onSuccess?: () => void;
 }
 
+function detectTypeFromPair(pair: string): PairType | undefined {
+  const crypto = ["BTCUSD", "ETHUSD"]; // isi sesuai list lo
+  const forex = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY"];
+  const commodity = ["GOLD", "SILVER", "OIL"];
+
+  if (crypto.includes(pair)) return "crypto";
+  if (forex.includes(pair)) return "forex";
+  if (commodity.includes(pair)) return "commodity";
+
+  return undefined;
+}
+
 const journalSchema = z.object({
   modal: z.string().optional(),
   modal_type: z.enum(["", "usd", "usc", "idr"] as const).optional(),
@@ -118,10 +130,7 @@ export default function JournalForm({
             ? journal.modal_type
             : "",
         tanggal: journal.tanggal ?? "",
-        pair:
-          journal.pair === "XAUUSD" || journal.pair === "BTCUSD"
-            ? journal.pair
-            : "",
+        pair: journal.pair ?? "",
         side: journal.side ?? "",
         lot: journal.lot?.toString() ?? "",
         harga_entry: journal.harga_entry?.toString() ?? "",
@@ -131,6 +140,11 @@ export default function JournalForm({
         win_lose: journal.win_lose ?? "",
         profit: journal.profit?.toString() ?? "",
       });
+
+      setExistingBefore(journal.analisa_before || null);
+      setExistingAfter(journal.analisa_after || null);
+      const detectedType = detectTypeFromPair(journal.pair);
+      setType(detectedType);
 
       setAnalisaBefore(null);
       setAnalisaAfter(null);
