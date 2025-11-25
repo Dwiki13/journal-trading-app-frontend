@@ -92,12 +92,15 @@ export default function DataJournalPage() {
     }
   };
 
-  const fetchPair = async () => {
+   const fetchPair = async () => {
     try {
       const params: PairParams = {};
       if (type) params.type = type;
       const response: PairsResponse = await getPairs(params);
-      setPair(response.data);
+
+      let pairList = response.data;
+
+      setPair(pairList);
     } catch (err) {
       console.error(err);
     }
@@ -118,12 +121,9 @@ export default function DataJournalPage() {
 
   useEffect(() => {
     fetchPair();
-  }, [type]);
-
-  useEffect(() => {
     setSearch("");
   }, [type]);
-
+  
   const handleSort = (column: keyof Journal) => {
     if (sortBy === column) {
       setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
@@ -179,6 +179,42 @@ export default function DataJournalPage() {
               <SelectItem value="commodity">Commodity</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="flex flex-col min-w-[200px] flex-1 md:flex-none">
+          <Label className="mb-1 font-medium text-sm">Pair</Label>
+          <Popover open={openPopover} onOpenChange={setOpenPopover}>
+            <PopoverTrigger asChild>
+              <Button className="w-full md:w-60 text-left" variant="outline">
+                {search || "Select pair"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="max-h-60 p-2 overflow-auto">
+              <Input
+                placeholder="Search pair..."
+                value={search ?? ""}
+                onChange={(e) => setSearch(e.target.value)}
+                className="mb-2"
+              />
+              {pair
+                .filter((p) =>
+                  p.toLowerCase().includes((search ?? "").toLowerCase())
+                )
+                .map((p) => (
+                  <Button
+                    key={p}
+                    variant="ghost"
+                    className="w-full justify-start"
+                    onClick={() => {
+                      setSearch(p);
+                      setOpenPopover(false);
+                    }}
+                  >
+                    {p}
+                  </Button>
+                ))}
+            </PopoverContent>
+          </Popover>
         </div>
 
         <div className="flex flex-col">
@@ -249,42 +285,6 @@ export default function DataJournalPage() {
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0">
               <Calendar mode="single" selected={dateTo} onSelect={setDateTo} />
-            </PopoverContent>
-          </Popover>
-        </div>
-
-        <div className="flex flex-col min-w-[200px] flex-1 md:flex-none">
-          <Label className="mb-1 font-medium text-sm">Pair</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button className="w-full md:w-60 text-left" variant="outline">
-                {search || "Select pair"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="max-h-60 p-2 overflow-auto">
-              <Input
-                placeholder="Search pair..."
-                value={search ?? ""}
-                onChange={(e) => setSearch(e.target.value)}
-                className="mb-2"
-              />
-              {pair
-                .filter((p) =>
-                  p.toLowerCase().includes((search ?? "").toLowerCase())
-                )
-                .map((p) => (
-                  <Button
-                    key={p}
-                    variant="ghost"
-                    className="w-full justify-start"
-                    onClick={() => {
-                      setSearch(p);
-                      setOpenPopover(false);
-                    }}
-                  >
-                    {p}
-                  </Button>
-                ))}
             </PopoverContent>
           </Popover>
         </div>
