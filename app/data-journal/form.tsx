@@ -584,7 +584,26 @@ export default function JournalForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Hasil</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select
+                    onValueChange={(val) => {
+                      field.onChange(val);
+
+                      // Jika pilih lose, tambahkan minus ke profit jika belum ada
+                      if (val === "lose") {
+                        const profitVal = form.getValues("profit") || "";
+                        if (!profitVal.startsWith("-") && profitVal !== "") {
+                          form.setValue("profit", "-" + profitVal);
+                        }
+                      } else if (val === "win") {
+                        // Jika sebelumnya minus, hapus
+                        const profitVal = form.getValues("profit") || "";
+                        if (profitVal.startsWith("-")) {
+                          form.setValue("profit", profitVal.slice(1));
+                        }
+                      }
+                    }}
+                    value={field.value}
+                  >
                     <FormControl>
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Pilih Hasil" />
@@ -607,7 +626,20 @@ export default function JournalForm({
                 <FormItem>
                   <FormLabel>Profit</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="Profit" />
+                    <Input
+                      {...field}
+                      placeholder="Profit"
+                      onChange={(e) => {
+                        let val = e.target.value;
+
+                        // Otomatis minus jika win_lose lose
+                        if (form.getValues("win_lose") === "lose") {
+                          if (!val.startsWith("-") && val !== "")
+                            val = "-" + val;
+                        }
+                        field.onChange(val);
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
