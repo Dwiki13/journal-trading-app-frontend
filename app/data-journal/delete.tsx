@@ -57,17 +57,18 @@ export function DeleteJournal({ journalId, onSuccess }: DeleteJournalButtonProps
             Data journal akan dihapus secara permanen. Apakah kamu yakin?
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <div className="flex justify-end gap-2 mt-4">
-          <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={handleDelete}
-            disabled={loading}
-            className="flex items-center gap-2"
-          >
-            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-            {loading ? "Menghapus..." : "Hapus"}
-          </AlertDialogAction>
-        </div>
+       <div className="flex justify-end gap-2 mt-4">
+  <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+  <Button
+    onClick={handleDelete} // async
+    disabled={loading}
+    className="flex items-center gap-2"
+  >
+    {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+    {loading ? "Menghapus..." : "Hapus"}
+  </Button>
+</div>
+
       </AlertDialogContent>
     </AlertDialog>
   );
