@@ -9,6 +9,7 @@ export interface PairsResponse {
   status: boolean;
   status_code: number;
   message: string;
+  type: string;
   data: string[];
   total: number;
 }

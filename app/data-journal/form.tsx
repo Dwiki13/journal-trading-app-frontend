@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { z } from "zod";
+import { Pencil } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import {
@@ -50,18 +51,6 @@ interface JournalFormModalProps {
   onSuccess?: () => void;
 }
 
-function detectTypeFromPair(pair: string): PairType | undefined {
-  const crypto = ["BTCUSD", "ETHUSD"]; // isi sesuai list lo
-  const forex = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY"];
-  const commodity = ["GOLD", "SILVER", "OIL"];
-
-  if (crypto.includes(pair)) return "crypto";
-  if (forex.includes(pair)) return "forex";
-  if (commodity.includes(pair)) return "commodity";
-
-  return undefined;
-}
-
 const journalSchema = z.object({
   modal: z.string().optional(),
   modal_type: z.enum(["", "usd", "usc", "idr"] as const).optional(),
@@ -88,7 +77,6 @@ export default function JournalForm({
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [convertedModal, setConvertedModal] = useState<string>("");
-  const router = useRouter();
   const [pair, setPair] = useState<string[]>([]);
   const [type, setType] = useState<PairType>();
   const [search, setSearch] = useState<string | null>();
@@ -118,6 +106,21 @@ export default function JournalForm({
   const [analisaAfter, setAnalisaAfter] = useState<File | null>(null);
   const [existingBefore, setExistingBefore] = useState<string | null>(null);
   const [existingAfter, setExistingAfter] = useState<string | null>(null);
+
+  const fetchTypeByPair = async (pair: string) => {
+    try {
+      if (!pair) return;
+      const response: PairsResponse = await getPairs({ search: pair });
+      if (response.data.includes(pair)) {
+        setType(response.type as PairType);
+      } else {
+        setType(undefined);
+      }
+    } catch (err) {
+      console.error(err);
+      setType(undefined);
+    }
+  };
 
   useEffect(() => {
     if (open) {
@@ -169,8 +172,9 @@ export default function JournalForm({
         setExistingAfter(journal.analisa_after || null);
         setAnalisaBefore(null);
         setAnalisaAfter(null);
-        setType(detectTypeFromPair(journal.pair));
         setSearch("");
+        if (journal.pair) fetchTypeByPair(journal.pair);
+
         if (
           journal.modal &&
           journal.modal_type &&
@@ -194,7 +198,6 @@ export default function JournalForm({
       if (type) params.type = type;
       const response: PairsResponse = await getPairs(params);
 
-      // Jika edit dan nilai existing belum ada di array, tambahkan
       let pairList = response.data;
       if (isEdit && journal?.pair && !pairList.includes(journal.pair)) {
         pairList = [journal.pair, ...pairList];
@@ -321,7 +324,17 @@ export default function JournalForm({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>{triggerText}</Button>
+        {isEdit ? (
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+        ) : (
+          <Button>{triggerText}</Button>
+        )}
       </DialogTrigger>
 
       <DialogContent className="max-h-[90vh] overflow-y-auto w-full max-w-3xl sm:max-w-[700px]">
