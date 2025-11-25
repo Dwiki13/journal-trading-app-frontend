@@ -153,7 +153,11 @@ export default function DataJournalPage() {
         <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50 mb-7">
           Data Trading Journal
         </h1>
-        <JournalForm mode="create" triggerText="Tambah Journal" onSuccess={() => fetchJournal()} />
+        <JournalForm
+          mode="create"
+          triggerText="Tambah Journal"
+          onSuccess={() => fetchJournal()}
+        />
       </header>
 
       <div className="flex flex-wrap gap-4 mb-6 items-end">
@@ -292,6 +296,8 @@ export default function DataJournalPage() {
             <TableHeader className="sticky top-0 bg-zinc-100 dark:bg-zinc-900 z-10">
               <TableRow>
                 {[
+                  { label: "Modal", key: "modal" },
+                  { label: "Modal Type", key: "modal_type" },
                   { label: "Tanggal", key: "tanggal" },
                   { label: "Pair", key: "pair" },
                   { label: "Side", key: "side" },
@@ -323,7 +329,7 @@ export default function DataJournalPage() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={12} className="text-center py-6">
+                  <TableCell colSpan={15} className="text-center py-6">
                     <Spinner className="h-6 w-6 mx-auto" />
                   </TableCell>
                 </TableRow>
@@ -333,6 +339,8 @@ export default function DataJournalPage() {
                     key={item.id}
                     className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
                   >
+                    <TableCell>{item.modal}</TableCell>
+                    <TableCell>{item.modal_type}</TableCell>
                     <TableCell>
                       {new Date(item.tanggal).toLocaleDateString("id-ID")}
                     </TableCell>
@@ -412,15 +420,17 @@ export default function DataJournalPage() {
                           onSuccess={() => fetchJournal()}
                         />
 
-                       <DeleteJournal journalId={item.id} onSuccess={() => fetchJournal()}/>
-
+                        <DeleteJournal
+                          journalId={item.id}
+                          onSuccess={() => fetchJournal()}
+                        />
                       </div>
                     </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={12} className="text-center py-6">
+                  <TableCell colSpan={15} className="text-center py-6">
                     There is no journal data yet.
                   </TableCell>
                 </TableRow>
